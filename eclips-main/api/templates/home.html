@@ -1,0 +1,1642 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ECLIPS - Space Shuttle Environmental Control System</title>
+    
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@300;400;500;600&display=swap" rel="stylesheet">
+    
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+
+    <style>
+        /* --- NEW PENDING BUTTON STYLES --- */
+.btn-pending {
+    /* A neutral color, often yellow/orange for deferral */
+    background-color: var(--warning); 
+    color: var(--bg-primary); /* Dark text for contrast */
+}
+
+.btn-pending:hover {
+    background-color: #ffaa00; /* Slightly brighter orange on hover */
+    box-shadow: 0 0 8px rgba(255, 170, 0, 0.6); /* Subtle glow */
+}
+        /* --- NEW BUTTON STYLES FOR EXECUTE/DISMISS (Urgency-Contrast Theme) --- */
+.alert-actions {
+  display: flex;
+  gap: 15px;    
+  margin-top: 1rem; /* Adjust spacing to fit the existing card structure */
+  justify-content: flex-start; /* Align with content on the left */
+}
+
+/* General Action Button Styles */
+.btn-action {
+  padding: 10px 20px;
+  border-radius: 4px; /* Matches your dashboard's corners */
+  cursor: pointer;
+  font-family: 'Inter', sans-serif;
+  font-size: 14px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  transition: all 0.15s ease-in-out;
+}
+
+/* EXECUTE Button: The primary, glowing action */
+.btn-execute {
+  background-color: #39FF14; /* Neon Green */
+  color: #053b01;            /* Dark text for contrast */
+  border: none;
+  font-weight: 600; /* Bold */
+  box-shadow: 0 0 10px rgba(57, 255, 20, 0.5); /* The Creative Glow */
+}
+
+/* Execute Button: Hover/Press Effects */
+.btn-execute:hover {
+  background-color: #5dff3d;
+  box-shadow: 0 0 15px rgba(57, 255, 20, 0.8);
+}
+.btn-execute:active {
+  transform: scale(0.98); /* Simple "Press-Down" feel */
+}
+
+
+/* DISMISS Button: Ghost and Secondary */
+.btn-dismiss {
+  background: transparent;
+  color: var(--text-secondary); /* Light gray text */
+  border: 1px solid var(--border-primary);
+  font-weight: 400; 
+}
+
+/* Dismiss Button: Hover Effects */
+.btn-dismiss:hover {
+  color: var(--accent-primary); /* Use your primary accent color for a cool hover */
+  border-color: var(--accent-primary);
+  background-color: rgba(255, 69, 0, 0.05); /* Very slight background fill */
+}
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        :root {
+            --bg-primary: #000000;
+            --bg-secondary: #0a0a0a;
+            --bg-panel: #111111;
+            --bg-card: #1a1a1a;
+            --border-primary: #2a2a2a;
+            --border-active: #ff4500;
+            --text-primary: #ffffff;
+            --text-secondary: #a0a0a0;
+            --text-dim: #606060;
+            --accent-primary: #ff4500;
+            --accent-secondary: #00a8ff;
+            --success: #00ff00;
+            --warning: #ffa500;
+            --critical: #ff0000;
+            --nominal: #00ff00;
+        }
+        
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            min-height: 100vh;
+            overflow-x: hidden;
+            font-size: 14px;
+        }
+        
+        /* Grid overlay for technical feel */
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-image: 
+                linear-gradient(rgba(255, 69, 0, 0.01) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(255, 69, 0, 0.01) 1px, transparent 1px);
+            background-size: 50px 50px;
+            pointer-events: none;
+            z-index: 1;
+        }
+        
+        /* Navigation Header */
+        .header {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            background: var(--bg-secondary);
+            border-bottom: 1px solid var(--border-primary);
+            z-index: 1000;
+        }
+        
+        .header-top {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0.75rem 1.5rem;
+            border-bottom: 1px solid var(--border-primary);
+        }
+        
+        .logo-section {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+        
+        .logo {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 1.25rem;
+            font-weight: 600;
+            letter-spacing: 0.05em;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        
+        .logo-badge {
+            background: var(--accent-primary);
+            color: white;
+            padding: 0.25rem 0.5rem;
+            border-radius: 2px;
+            font-size: 0.7rem;
+            font-weight: 700;
+            letter-spacing: 0.1em;
+        }
+        
+        .mission-info {
+            display: flex;
+            gap: 2rem;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+        }
+        
+        .mission-info span {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        
+        .mission-info .value {
+            color: var(--text-primary);
+            font-weight: 500;
+        }
+        
+        /* Dynamic Status Indicator */
+        .status-indicator {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.4rem 0.8rem;
+            background: rgba(0, 255, 0, 0.1);
+            border: 1px solid var(--success);
+            border-radius: 2px;
+            transition: all 0.3s ease;
+        }
+        
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            background: var(--success);
+            border-radius: 50%;
+            animation: pulse 2s infinite;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+        
+        /* Warning Status Indicator */
+        .status-indicator.warning {
+            background: rgba(255, 165, 0, 0.1);
+            border-color: var(--warning);
+            color: var(--warning);
+        }
+        
+        .status-indicator.warning .status-dot {
+            background: var(--warning);
+        }
+        
+        /* Critical Status Indicator */
+        .status-indicator.critical {
+            background: rgba(255, 0, 0, 0.1);
+            border-color: var(--critical);
+            color: var(--critical);
+        }
+        
+        .status-indicator.critical .status-dot {
+            background: var(--critical);
+        }
+        
+        /* Navigation */
+        .nav {
+            background: var(--bg-panel);
+            padding: 0;
+            display: flex;
+        }
+        
+        .nav-item {
+            flex: 1;
+            position: relative;
+        }
+        
+        .nav-link {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+            padding: 1rem;
+            color: var(--text-secondary);
+            text-decoration: none;
+            font-size: 0.875rem;
+            font-weight: 500;
+            letter-spacing: 0.025em;
+            border-right: 1px solid var(--border-primary);
+            transition: all 0.2s ease;
+            position: relative;
+        }
+        
+        .nav-item:last-child .nav-link {
+            border-right: none;
+        }
+        
+        .nav-link::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 2px;
+            background: var(--accent-primary);
+            transform: scaleX(0);
+            transition: transform 0.2s ease;
+        }
+        
+        .nav-link:hover {
+            color: var(--text-primary);
+            background: rgba(255, 69, 0, 0.05);
+        }
+        
+        .nav-link.active {
+            color: var(--accent-primary);
+            background: rgba(255, 69, 0, 0.1);
+        }
+        
+        .nav-link.active::after {
+            transform: scaleX(1);
+        }
+        
+        /* Main Container */
+        .main-container {
+            margin-top: 105px;
+            padding: 1.5rem;
+            position: relative;
+            z-index: 2;
+            max-width: 1600px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+        
+        .section {
+            display: none;
+        }
+        
+        .section.active {
+            display: block;
+            animation: fadeIn 0.3s ease;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+        
+        .section-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1.5rem;
+            padding-bottom: 0.75rem;
+            border-bottom: 1px solid var(--border-primary);
+        }
+        
+        .section-title {
+            font-size: 1.125rem;
+            font-weight: 600;
+            letter-spacing: 0.025em;
+            text-transform: uppercase;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+        
+        .section-title i {
+            color: var(--accent-primary);
+            font-size: 1rem;
+        }
+        
+        .timestamp {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.75rem;
+            color: var(--text-dim);
+        }
+        
+        /* Dashboard Grid */
+        .metrics-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+        }
+        
+        .metric-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border-primary);
+            border-radius: 4px;
+            padding: 1.25rem;
+            position: relative;
+            overflow: hidden;
+            transition: border-color 0.2s ease;
+        }
+        
+        .metric-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 3px;
+            height: 100%;
+            background: var(--nominal);
+            transition: background 0.2s ease;
+        }
+        
+        .metric-card.warning::before {
+            background: var(--warning);
+        }
+        
+        .metric-card.critical::before {
+            background: var(--critical);
+        }
+        
+        .metric-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 0.75rem;
+        }
+        
+        .metric-label {
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            font-weight: 500;
+        }
+        
+        .metric-status {
+            font-size: 0.625rem;
+            padding: 0.125rem 0.375rem;
+            border-radius: 2px;
+            background: rgba(0, 255, 0, 0.2);
+            color: var(--success);
+            font-weight: 600;
+            letter-spacing: 0.05em;
+            transition: all 0.2s ease;
+        }
+        
+        .metric-card.warning .metric-status {
+            background: rgba(255, 165, 0, 0.2);
+            color: var(--warning);
+        }
+        
+        .metric-card.critical .metric-status {
+            background: rgba(255, 0, 0, 0.2);
+            color: var(--critical);
+        }
+        
+        .metric-value {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 2rem;
+            font-weight: 300;
+            margin: 0.5rem 0;
+            display: flex;
+            align-items: baseline;
+            gap: 0.25rem;
+        }
+        
+        .metric-unit {
+            font-size: 0.875rem;
+            color: var(--text-secondary);
+        }
+        
+        .metric-footer {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 0.75rem;
+            padding-top: 0.75rem;
+            border-top: 1px solid rgba(255, 255, 255, 0.05);
+        }
+        
+        .metric-range {
+            font-size: 0.625rem;
+            color: var(--text-dim);
+            font-family: 'JetBrains Mono', monospace;
+        }
+        
+        .metric-trend {
+            display: flex;
+            align-items: center;
+            gap: 0.25rem;
+            font-size: 0.75rem;
+        }
+        
+        .trend-up {
+            color: var(--success);
+        }
+        
+        .trend-down {
+            color: var(--critical);
+        }
+        
+        .trend-stable {
+            color: var(--text-secondary);
+        }
+        
+        /* System Status Grid */
+        .systems-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 0.75rem;
+            margin-top: 1.5rem;
+        }
+        
+        .system-card {
+            background: var(--bg-panel);
+            border: 1px solid var(--border-primary);
+            border-radius: 2px;
+            padding: 0.75rem;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            transition: all 0.2s ease;
+        }
+        
+        .system-card:hover {
+            background: var(--bg-card);
+            border-color: var(--accent-primary);
+        }
+        
+        .system-icon {
+            width: 32px;
+            height: 32px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: rgba(255, 69, 0, 0.1);
+            border-radius: 2px;
+            color: var(--accent-primary);
+        }
+        
+        .system-info {
+            flex: 1;
+        }
+        
+        .system-name {
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-bottom: 0.25rem;
+        }
+        
+        .system-value {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.875rem;
+            font-weight: 500;
+        }
+        
+        /* Trends Section */
+        .chart-container {
+            background: var(--bg-card);
+            border: 1px solid var(--border-primary);
+            border-radius: 4px;
+            padding: 1.5rem;
+            min-height: 400px;
+            position: relative;
+        }
+        
+        .chart-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1rem;
+            padding-bottom: 0.75rem;
+            border-bottom: 1px solid var(--border-primary);
+        }
+        
+        .chart-controls {
+            display: flex;
+            gap: 0.5rem;
+        }
+        
+        .chart-btn {
+            padding: 0.375rem 0.75rem;
+            background: var(--bg-panel);
+            border: 1px solid var(--border-primary);
+            color: var(--text-secondary);
+            font-size: 0.75rem;
+            border-radius: 2px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        
+        .chart-btn:hover {
+            background: var(--bg-card);
+            color: var(--text-primary);
+            border-color: var(--accent-primary);
+        }
+        
+        .chart-btn.active {
+            background: rgba(255, 69, 0, 0.1);
+            color: var(--accent-primary);
+            border-color: var(--accent-primary);
+        }
+        
+        /* Predictions */
+        .prediction-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+            gap: 1rem;
+        }
+        
+        .prediction-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border-primary);
+            border-radius: 4px;
+            padding: 1.25rem;
+        }
+        
+        .prediction-header {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            margin-bottom: 1rem;
+            padding-bottom: 0.75rem;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+        }
+        
+        .prediction-icon {
+            width: 40px;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: rgba(0, 168, 255, 0.1);
+            border-radius: 4px;
+            color: var(--accent-secondary);
+        }
+        
+        .prediction-title {
+            font-size: 0.875rem;
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 0.025em;
+        }
+        
+        .prediction-metrics {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 1rem;
+        }
+        
+        .prediction-metric {
+            font-size: 0.75rem;
+        }
+        
+        .prediction-metric-label {
+            color: var(--text-dim);
+            margin-bottom: 0.25rem;
+        }
+        
+        .prediction-metric-value {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 1.125rem;
+            color: var(--accent-secondary);
+        }
+        
+        /* Alerts */
+        .alerts-container {
+            max-height: 500px;
+            overflow-y: auto;
+        }
+        
+        .alert-item {
+            background: var(--bg-card);
+            border: 1px solid var(--border-primary);
+            border-radius: 2px;
+            padding: 1rem;
+            margin-bottom: 0.75rem;
+            display: grid;
+            grid-template-columns: auto auto 1fr auto;
+            align-items: center;
+            gap: 1rem;
+        }
+        
+        .alert-severity {
+            width: 6px;
+            height: 40px;
+            border-radius: 1px;
+        }
+        
+        .alert-severity.critical {
+            background: var(--critical);
+        }
+        
+        .alert-severity.warning {
+            background: var(--warning);
+        }
+        
+        .alert-severity.info {
+            background: var(--accent-secondary);
+        }
+        
+        .alert-code {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.75rem;
+            padding: 0.25rem 0.5rem;
+            background: var(--bg-panel);
+            border-radius: 2px;
+            color: var(--text-secondary);
+        }
+        
+        .alert-message {
+            font-size: 0.875rem;
+        }
+        
+        .alert-time {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.75rem;
+            color: var(--text-dim);
+        }
+        
+        /* Recommendations */
+        .recommendations-list {
+            display: grid;
+            gap: 1rem;
+        }
+        
+        .recommendation-item {
+            background: var(--bg-card);
+            border: 1px solid var(--border-primary);
+            border-radius: 4px;
+            padding: 1.25rem;
+            display: grid;
+            grid-template-columns: auto 1fr auto;
+            align-items: start;
+            gap: 1rem;
+        }
+        
+        .recommendation-priority {
+            padding: 0.25rem 0.5rem;
+            border-radius: 2px;
+            font-size: 0.625rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+        
+        .priority-high {
+            background: rgba(255, 69, 0, 0.2);
+            color: var(--accent-primary);
+        }
+        
+        .priority-medium {
+            background: rgba(255, 165, 0, 0.2);
+            color: var(--warning);
+        }
+        
+        .priority-low {
+            background: rgba(0, 168, 255, 0.2);
+            color: var(--accent-secondary);
+        }
+
+        /* Profile Section */
+        .profile-grid {
+            display: grid;
+            grid-template-columns: 300px 1fr;
+            gap: 1.5rem;
+            align-items: start;
+        }
+
+        .profile-card, .profile-details {
+            background: var(--bg-card);
+            border: 1px solid var(--border-primary);
+            border-radius: 4px;
+            padding: 1.5rem;
+        }
+
+        .profile-card {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            text-align: center;
+        }
+        
+        .profile-pic {
+            width: 120px;
+            height: 120px;
+            border-radius: 50%;
+            border: 3px solid var(--accent-primary);
+            object-fit: cover;
+            margin-bottom: 1rem;
+        }
+
+        .profile-name {
+            font-size: 1.25rem;
+            font-weight: 600;
+            margin-bottom: 0.25rem;
+        }
+
+        .profile-role {
+            color: var(--accent-secondary);
+            font-size: 0.875rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-bottom: 1.5rem;
+        }
+        
+        .profile-card h3 {
+            font-size: 0.875rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-bottom: 1rem;
+            padding-bottom: 0.75rem;
+            border-bottom: 1px solid var(--border-primary);
+            color: var(--text-secondary);
+            width: 100%;
+        }
+
+        .profile-details h3 {
+            font-size: 0.875rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-bottom: 1rem;
+            padding-bottom: 0.75rem;
+            border-bottom: 1px solid var(--border-primary);
+            color: var(--accent-primary);
+        }
+
+        .spec-list {
+            list-style: none;
+            font-size: 0.875rem;
+            width: 100%;
+        }
+        
+        .spec-list li {
+            padding: 0.5rem 0;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+            display: flex;
+            justify-content: space-between;
+        }
+        
+        .spec-list li:last-child {
+            border-bottom: none;
+        }
+        
+        .spec-label {
+            color: var(--text-secondary);
+        }
+        
+        .spec-value {
+            font-family: 'JetBrains Mono', monospace;
+            color: var(--text-primary);
+        }
+        
+        .spec-value.nominal-value {
+            color: var(--nominal);
+        }
+
+        /* About Section */
+        .about-content {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 2rem;
+        }
+        
+        .about-section {
+            background: var(--bg-card);
+            border: 1px solid var(--border-primary);
+            border-radius: 4px;
+            padding: 1.5rem;
+        }
+        
+        .about-section h3 {
+            font-size: 0.875rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-bottom: 1rem;
+            padding-bottom: 0.75rem;
+            border-bottom: 1px solid var(--border-primary);
+            color: var(--accent-primary);
+        }
+        
+        /* Scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        
+        ::-webkit-scrollbar-track {
+            background: var(--bg-panel);
+        }
+        
+        ::-webkit-scrollbar-thumb {
+            background: var(--border-primary);
+            border-radius: 2px;
+        }
+        
+        ::-webkit-scrollbar-thumb:hover {
+            background: var(--accent-primary);
+        }
+        
+        /* Responsive */
+        @media (max-width: 1024px) {
+            .profile-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+        @media (max-width: 768px) {
+            .mission-info {
+                display: none;
+            }
+            .nav-link {
+                font-size: 0.75rem;
+                padding: 0.75rem 0.5rem;
+            }
+            .nav-link i {
+                display: none;
+            }
+            .about-content {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <header class="header">
+        <div class="header-top">
+            <div class="logo-section">
+                <div class="logo">
+                    <span class="logo-badge">NASA</span> ECLIPS
+                </div>
+            </div>
+            <div class="mission-info">
+                <span>MISSION: <span class="value">STS-401</span></span>
+                <span>MET: <span class="value">T+142:23:47</span></span>
+                <span>ORBIT: <span class="value">254</span></span>
+                <span>ALT: <span class="value">408 km</span></span>
+            </div>
+            <div id="global-status" class="status-indicator">
+                <div class="status-dot"></div>
+                <span>ALL SYSTEMS NOMINAL</span>
+            </div>
+        </div>
+        <nav class="nav">
+            <div class="nav-item">
+                <a href="#dashboard" class="nav-link active" data-section="dashboard">
+                    <i class="fas fa-th-large"></i> DASHBOARD
+                </a>
+            </div>
+            
+            <div class="nav-item">
+                <a href="#predictions" class="nav-link" data-section="predictions">
+                    <i class="fas fa-brain"></i> PREDICTIONS
+                </a>
+            </div>
+            <div class="nav-item">
+                <a href="#recommendations" class="nav-link" data-section="recommendations">
+                    <i class="fas fa-tasks"></i> RECOMMENDATIONS
+                </a>
+            </div>
+            <div class="nav-item">
+                <a href="#alerts" class="nav-link" data-section="alerts">
+                    <i class="fas fa-exclamation-triangle"></i> ALERTS
+                </a>
+            </div>
+            <div class="nav-item">
+                <a href="#profile" class="nav-link" data-section="profile">
+                    <i class="fas fa-user-circle"></i> PROFILE
+                </a>
+            </div>
+            <div class="nav-item">
+                <a href="#about" class="nav-link" data-section="about">
+                    <i class="fas fa-info-circle"></i> ABOUT
+                </a>
+            </div>
+        </nav>
+    </header>
+
+    <div class="main-container">
+        <section id="dashboard" class="section active">
+            <div class="section-header">
+                <h1 class="section-title">
+                    <i class="fas fa-satellite"></i> ENVIRONMENTAL CONTROL & LIFE SUPPORT SYSTEM
+                </h1>
+                <span class="timestamp">LAST UPDATE: <span id="current-time"></span></span>
+            </div>
+            <div class="metrics-grid" id="metrics-grid">
+                <div class="metric-card" data-metric="Cabin Pressure (kPa)">
+                    <div class="metric-header">
+                        <span class="metric-label">CABIN PRESSURE</span>
+                        <span class="metric-status">NOMINAL</span>
+                    </div>
+                    <div class="metric-value">
+                        <span class="value-display">101.3</span><span class="metric-unit">kPa</span>
+                    </div>
+                    <div class="metric-footer">
+                        <span class="metric-range">RANGE: 98.6-103.4</span>
+                        <span class="metric-trend trend-stable">
+                            <i class="fas fa-minus"></i> STABLE
+                        </span>
+                    </div>
+                </div>
+                <div class="metric-card" data-metric="O₂ Partial Pressure (kPa)">
+                    <div class="metric-header">
+                        <span class="metric-label">O₂ PARTIAL PRESSURE</span>
+                        <span class="metric-status">NOMINAL</span>
+                    </div>
+                    <div class="metric-value">
+                        <span class="value-display">21.2</span><span class="metric-unit">kPa</span>
+                    </div>
+                    <div class="metric-footer">
+                        <span class="metric-range">RANGE: 19.5-23.8</span>
+                        <span class="metric-trend trend-up">
+                            <i class="fas fa-arrow-up"></i> +0.3%
+                        </span>
+                    </div>
+                </div>
+                <div class="metric-card" data-metric="CO₂ Concentration (%)">
+                    <div class="metric-header">
+                        <span class="metric-label">CO₂ CONCENTRATION</span>
+                        <span class="metric-status">NOMINAL</span>
+                    </div>
+                    <div class="metric-value">
+                        <span class="value-display">0.35</span><span class="metric-unit">%</span>
+                    </div>
+                    <div class="metric-footer">
+                        <span class="metric-range">RANGE: 0.00-0.40</span>
+                        <span class="metric-trend trend-up">
+                            <i class="fas fa-minus"></i> STABLE
+                        </span>
+                    </div>
+                </div>
+                <div class="metric-card" data-metric="Cabin Temperature (°C)">
+                    <div class="metric-header">
+                        <span class="metric-label">CABIN TEMPERATURE</span>
+                        <span class="metric-status">NOMINAL</span>
+                    </div>
+                    <div class="metric-value">
+                        <span class="value-display">22.8</span><span class="metric-unit">°C</span>
+                    </div>
+                    <div class="metric-footer">
+                        <span class="metric-range">RANGE: 21.0-24.0</span>
+                        <span class="metric-trend trend-stable">
+                            <i class="fas fa-minus"></i> STABLE
+                        </span>
+                    </div>
+                </div>
+                <div class="metric-card" data-metric="Relative Humidity (%)">
+                    <div class="metric-header">
+                        <span class="metric-label">RELATIVE HUMIDITY</span>
+                        <span class="metric-status">NOMINAL</span>
+                    </div>
+                    <div class="metric-value">
+                        <span class="value-display">45</span><span class="metric-unit">%</span>
+                    </div>
+                    <div class="metric-footer">
+                        <span class="metric-range">RANGE: 40-60</span>
+                        <span class="metric-trend trend-down">
+                            <i class="fas fa-arrow-down"></i> -1.2%
+                        </span>
+                    </div>
+                </div>
+                <div class="metric-card" data-metric="Water Reserves (L)">
+                    <div class="metric-header">
+                        <span class="metric-label">WATER RESERVES</span>
+                        <span class="metric-status">NOMINAL</span>
+                    </div>
+                    <div class="metric-value">
+                        <span class="value-display">892</span><span class="metric-unit">L</span>
+                    </div>
+                    <div class="metric-footer">
+                        <span class="metric-range">CAPACITY: 1200L</span>
+                        <span class="metric-trend trend-down">
+                            <i class="fas fa-arrow-down"></i> -12L/day
+                        </span>
+                    </div>
+                </div>
+            </div>
+            <div class="section-header" style="margin-top: 2rem;">
+                <h2 class="section-title" style="font-size: 1rem;">
+                    <i class="fas fa-cogs"></i> SUBSYSTEM STATUS
+                </h2>
+            </div>
+            <div class="systems-grid">
+                <div class="system-card">
+                    <div class="system-icon">
+                        <i class="fas fa-fan"></i>
+                    </div>
+                    <div class="system-info">
+                        <div class="system-name">VENTILATION</div>
+                        <div class="system-value">ACTIVE - 2400 RPM</div>
+                    </div>
+                </div>
+                <div class="system-card">
+                    <div class="system-icon">
+                        <i class="fas fa-filter"></i>
+                    </div>
+                    <div class="system-info">
+                        <div class="system-name">CO₂ SCRUBBER</div>
+                        <div class="system-value">EFFICIENCY: 94%</div>
+                    </div>
+                </div>
+                <div class="system-card">
+                    <div class="system-icon">
+                        <i class="fas fa-tint"></i>
+                    </div>
+                    <div class="system-info">
+                        <div class="system-name">WATER PROCESSOR</div>
+                        <div class="system-value">42 L/hr Processed</div>
+                    </div>
+                </div>
+                <div class="system-card">
+                    <div class="system-icon">
+                        <i class="fas fa-atom"></i>
+                    </div>
+                    <div class="system-info">
+                        <div class="system-name">O₂ GENERATION</div>
+                        <div class="system-value">ACTIVE - 1.8 kg/day</div>
+                    </div>
+                </div>
+                <div class="system-card">
+                    <div class="system-icon">
+                        <i class="fas fa-thermometer-half"></i>
+                    </div>
+                    <div class="system-info">
+                        <div class="system-name">THERMAL CONTROL</div>
+                        <div class="system-value">LOOP A: 16.5°C</div>
+                    </div>
+                </div>
+                <div class="system-card">
+                    <div class="system-icon">
+                        <i class="fas fa-recycle"></i>
+                    </div>
+                    <div class="system-info">
+                        <div class="system-name">WASTE MGMT</div>
+                        <div class="system-value">CAPACITY: 78%</div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section id="trends" class="section">
+            <div class="section-header">
+                <h1 class="section-title">
+                    <i class="fas fa-chart-line"></i> TELEMETRY TRENDS
+                </h1>
+            </div>
+            <div class="chart-container">
+                <div class="chart-header">
+                    <h3 style="font-weight: 500;">Anomaly Trend Monitor (<span id="current-metric-display">CO₂ Concentration (%)</span>)</h3>
+                    <div class="chart-controls" id="chart-controls">
+                        </div>
+                </div>
+                <canvas id="telemetryChart"></canvas>
+            </div>
+        </section>
+
+        <section id="predictions" class="section">
+            <div class="section-header">
+                <h1 class="section-title">
+                    <i class="fas fa-brain"></i> PREDICTIVE ANALYSIS
+                </h1>
+            </div>
+            <div class="prediction-grid">
+                <div class="prediction-card">
+                    <div class="prediction-header">
+                        <div class="prediction-icon"><i class="fas fa-tint"></i></div>
+                        <span class="prediction-title">CONSUMABLES PREDICTIONS (NEXT 72H)</span>
+                    </div>
+                    <div class="prediction-metrics">
+                        <div class="prediction-metric">
+                            <div class="prediction-metric-label">WATER DEPLETION</div>
+                            <div class="prediction-metric-value">T-68.5 days</div>
+                        </div>
+                        <div class="prediction-metric">
+                            <div class="prediction-metric-label">O₂ TANK DEPLETION</div>
+                            <div class="prediction-metric-value">T-81.2 days</div>
+                        </div>
+                        <div class="prediction-metric">
+                            <div class="prediction-metric-label">CO₂ SCRUBBER SATURATION</div>
+                            <div class="prediction-metric-value">T-14.7 hours</div>
+                        </div>
+                        <div class="prediction-metric">
+                            <div class="prediction-metric-label">WASTE TANK FULL</div>
+                            <div class="prediction-metric-value">T-9.1 days</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="prediction-card" id="prediction-card-anomaly">
+                    <div class="prediction-header">
+                        <div class="prediction-icon" id="prediction-icon-anomaly"><i class="fas fa-cogs"></i></div>
+                        <span class="prediction-title" id="prediction-title-anomaly">SYSTEM ANOMALY LIKELIHOOD (NEXT 24H)</span>
+                    </div>
+                    <p id="prediction-message">No immediate threats detected. All systems operating within predicted parameters.</p>
+                </div>
+            </div>
+        </section>
+
+        <section id="recommendations" class="section">
+            <div class="section-header">
+                <h1 class="section-title">
+                    <i class="fas fa-tasks"></i> RECOMMENDED ACTIONS
+                </h1>
+            </div>
+            <div class="recommendations-list" id="recommendations-list">
+                <div class="recommendation-item">
+                    <span class="recommendation-priority priority-low">LOW</span>
+                    <div>
+                        <div style="font-weight: 600;">Standard Procedure: Monitor Water Level</div>
+                        <div style="font-size: 0.8rem; color: var(--text-secondary);">Water Reserves are below 80%. Continue standard monitoring and prepare for water processing cycle.</div>
+                    </div>
+                    <button class="btn-action btn-dismiss">ACKNOWLEDGE</button>
+                </div>
+            </div>
+            <div id="solution-message" style="margin-top: 1rem; color: var(--success); font-weight: 500; display: none;"></div>
+        </section>
+
+        <section id="alerts" class="section">
+            <div class="section-header">
+                <h1 class="section-title">
+                    <i class="fas fa-exclamation-triangle"></i> ACTIVE ALERTS
+                </h1>
+            </div>
+            <div class="alerts-container" id="alerts-container">
+                <div class="alert-item">
+                    <span class="alert-severity info"></span>
+                    <span class="alert-code">INF-001</span>
+                    <span class="alert-message">Routine telemetry system check complete. No errors found.</span>
+                    <span class="alert-time">09:00:00</span>
+                </div>
+            </div>
+        </section>
+
+        <section id="profile" class="section">
+            <div class="section-header">
+                <h1 class="section-title">
+                    <i class="fas fa-user-circle"></i> CREW PROFILE
+                </h1>
+            </div>
+            <div class="profile-grid">
+                <div class="profile-card">
+                    <img src="https://i.imgur.com/8Q9j7Q7.png" alt="Astronaut Profile Picture" class="profile-pic">
+                    <div class="profile-name">COMMANDER S. NIXON</div>
+                    <div class="profile-role">Mission Commander</div>
+                    <h3>QUICK STATS</h3>
+                    <ul class="spec-list">
+                        <li><span class="spec-label">Flight Hours</span> <span class="spec-value">9,400 hrs</span></li>
+                        <li><span class="spec-label">EVA Count</span> <span class="spec-value">7</span></li>
+                        <li><span class="spec-label">Mission Role</span> <span class="spec-value">Pilot</span></li>
+                    </ul>
+                </div>
+                <div class="profile-details">
+                    <h3>MISSION DETAILS</h3>
+                    <ul class="spec-list">
+                        <li><span class="spec-label">Vehicle</span> <span class="spec-value">Orion IV Orbital Cruiser</span></li>
+                        <li><span class="spec-label">Crew Size</span> <span class="spec-value">3</span></li>
+                        <li><span class="spec-label">Primary Objective</span> <span class="spec-value">Deep Space Telescope Maintenance</span></li>
+                        <li><span class="spec-label">Days on Orbit</span> <span class="spec-value">142</span></li>
+                    </ul>
+                    <h3 style="margin-top: 2rem;">HEALTH METRICS (Current)</h3>
+                    <ul class="spec-list">
+                        <li><span class="spec-label">Heart Rate</span> <span class="spec-value nominal-value">62 bpm</span></li>
+                        <li><span class="spec-label">Core Temp</span> <span class="spec-value nominal-value">37.0 °C</span></li>
+                        <li><span class="spec-label">Sleep Cycle</span> <span class="spec-value nominal-value">100%</span></li>
+                    </ul>
+                </div>
+            </div>
+        </section>
+
+        <section id="about" class="section">
+            <div class="section-header">
+                <h1 class="section-title">
+                    <i class="fas fa-info-circle"></i> ABOUT ECLIPS ECLSS
+                </h1>
+            </div>
+            <div class="about-content">
+                <div class="about-section">
+                    <h3>SYSTEM OVERVIEW</h3>
+                    <p style="color: var(--text-secondary); line-height: 1.6;">
+                        ECLIPS is the Habitat Automation and Biological Awareness System, a specialized sub-module of the main Flight Control System (FCS). Its primary function is to monitor and regulate the Environmental Control and Life Support System (ECLSS) aboard the Orion IV. ECLIPS uses predictive modeling to anticipate potential component failures and environmental anomalies, presenting clear, prioritized recommendations to the crew.
+                    </p>
+                    <p style="color: var(--text-secondary); line-height: 1.6; margin-top: 1rem;">
+                        The system monitors critical factors including cabin pressure, oxygen/CO₂ balance, temperature, humidity, and water reserves. Any deviation outside of the nominal bounds will trigger a multi-stage alert and lock the anomalous data until a corrective action is logged.
+                    </p>
+                </div>
+                <div class="about-section">
+                    <h3>DATA INTERPRETATION</h3>
+                    <ul class="spec-list" style="padding-top: 0.5rem;">
+                        <li><span class="spec-label">NOMINAL</span> <span class="spec-value nominal-value">Safe operating range.</span></li>
+                        <li><span class="spec-label">CAUTION</span> <span style="color: var(--warning);">Deviation detected. Monitor required.</span></li>
+                        <li><span class="spec-label">CRITICAL</span> <span style="color: var(--critical);">Immediate intervention required to prevent mission failure or loss of life.</span></li>
+                        <li><span class="spec-label">Trend Up/Down</span> <span style="color: var(--text-dim);">Indicates change over the last cycle.</span></li>
+                    </ul>
+                </div>
+            </div>
+        </section>
+
+    </div>
+
+    <script>
+        // --- CONFIGURATION ---
+        const HISTORY_LENGTH = 10;
+        const METRIC_KEYS = [
+            "CO₂ Concentration (%)", "Cabin Pressure (kPa)", "Cabin Temperature (°C)", 
+            "O₂ Partial Pressure (kPa)", "Relative Humidity (%)", "Water Reserves (L)"
+        ];
+        
+        // --- OPTIMIZED CHART SCALES AND STYLES ---
+        const METRIC_SETTINGS = {
+            "CO₂ Concentration (%)": { unit: '%', min: 0.0, max: 1.0, color: '#ff4500' }, // Scaled for clarity
+            "Cabin Pressure (kPa)": { unit: 'kPa', min: 95, max: 105, color: '#00a8ff' }, // Scaled for clarity
+            "Cabin Temperature (°C)": { unit: '°C', min: 15, max: 30, color: '#ffa500' }, // Scaled for clarity
+            "O₂ Partial Pressure (kPa)": { unit: 'kPa', min: 18, max: 25, color: '#39FF14' }, // Scaled for clarity
+            "Relative Humidity (%)": { unit: '%', min: 30, max: 70, color: '#ff00ff' },
+            "Water Reserves (L)": { unit: 'L', min: 450, max: 1250, color: '#00ffff' }
+        };
+
+        // --- GLOBAL STATE ---
+        let telemetryChart;
+        let chartDataHistory = [];
+        let currentMetric = METRIC_KEYS[0]; // Default to CO₂
+        let lastRecommendationId = null; // FIX 1: Tracks the ID of the current active recommendation to prevent flicker
+
+        // --- UTILITY FUNCTIONS ---
+
+        function updateTime() {
+            const now = new Date();
+            const timeString = now.toTimeString().split(' ')[0];
+            document.getElementById('current-time').textContent = timeString;
+        }
+        
+        // --- CHART FUNCTIONS ---
+        
+        function initializeChart() {
+            const ctx = document.getElementById('telemetryChart').getContext('2d');
+            const settings = METRIC_SETTINGS[currentMetric];
+
+            telemetryChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: chartDataHistory.map((_, i) => i === HISTORY_LENGTH - 1 ? 'Current' : '-'),
+                    datasets: [{
+                        label: currentMetric,
+                        data: chartDataHistory.map(d => d[currentMetric]),
+                        borderColor: settings.color,
+                        backgroundColor: settings.color + '20', // Add transparency
+                        tension: 0.4,
+                        fill: true,
+                        pointRadius: 3
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    animation: false,
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: { mode: 'index', intersect: false }
+                    },
+                    scales: {
+                        x: {
+                            title: { display: false },
+                            grid: { color: 'rgba(255, 255, 255, 0.05)' }
+                        },
+                        y: {
+                            // *** OPTIMIZED SCALING APPLIED HERE ***
+                            title: { display: true, text: currentMetric + ' (' + settings.unit + ')' },
+                            min: settings.min,
+                            max: settings.max,
+                            grid: { color: 'rgba(255, 255, 255, 0.05)' },
+                            ticks: { precision: currentMetric.includes('%') ? 2 : 1 }
+                        }
+                    }
+                }
+            });
+        }
+        
+        function updateChart(data) {
+            if (!telemetryChart) return;
+            
+            // 1. Update History
+            chartDataHistory.shift();
+            
+            const newEntry = {};
+            for (const key of METRIC_KEYS) {
+                newEntry[key] = data[key].value;
+            }
+            newEntry.timestamp = data["CO₂ Concentration (%)"].timestamp; // Use one metric for timestamp if needed
+            
+            chartDataHistory.push(newEntry);
+            
+            // 2. Configure Chart for currentMetric
+            const settings = METRIC_SETTINGS[currentMetric];
+            const dataset = telemetryChart.data.datasets[0];
+            
+            // Update data points
+            dataset.data = chartDataHistory.map(d => d[currentMetric]);
+            
+            // Update color and label
+            dataset.label = currentMetric;
+            dataset.borderColor = settings.color;
+            dataset.backgroundColor = settings.color + '20';
+            
+            // 3. Update Scale (This is the critical fix)
+            const yScale = telemetryChart.options.scales.y;
+            yScale.title.text = currentMetric + ' (' + settings.unit + ')';
+            yScale.min = settings.min;
+            yScale.max = settings.max;
+            yScale.ticks.precision = currentMetric.includes('%') ? 2 : 1;
+
+            // 4. Redraw
+            telemetryChart.update('none'); // 'none' skips animation for performance
+            document.getElementById('current-metric-display').textContent = currentMetric;
+        }
+
+        function switchChartMetric(newMetric) {
+            if (currentMetric === newMetric || !telemetryChart) return;
+
+            currentMetric = newMetric;
+            // Force an update to instantly apply new scales/data
+            updateChart(chartDataHistory[HISTORY_LENGTH - 1]);
+            
+            // Update active button state
+            document.querySelectorAll('#chart-controls .chart-btn').forEach(btn => {
+                btn.classList.remove('active');
+                if (btn.textContent === newMetric) {
+                    btn.classList.add('active');
+                }
+            });
+        }
+        
+        // --- DASHBOARD & API FUNCTIONS ---
+
+        async function fetchDashboardData() {
+            try {
+                // Fetch Data
+                const dataResponse = await fetch('/get_data');
+                const data = await dataResponse.json();
+
+                // Fetch Predictions (Alert/Message)
+                const predResponse = await fetch('/get_predictions');
+                const predictions = await predResponse.json();
+                
+                // 1. Update Dashboard Cards
+                let allNominal = true;
+                
+                for (const key in data) {
+                    const card = document.querySelector(`.metric-card[data-metric="${key}"]`);
+                    if (card) {
+                        const status = data[key].status;
+                        
+                        // Update Value
+                        card.querySelector('.value-display').textContent = data[key].value.toFixed(key.includes('Pressure') ? 1 : 2);
+                        card.querySelector('.metric-unit').textContent = data[key].unit;
+
+                        // Update Status
+                        const statusElement = card.querySelector('.metric-status');
+                        statusElement.textContent = status;
+                        card.className = 'metric-card ' + status.toLowerCase(); // Reset class and add status class
+
+                        if (status !== 'NOMINAL') {
+                            allNominal = false;
+                        }
+                    }
+                }
+
+                // 2. Update Global Status
+                const globalStatus = document.getElementById('global-status');
+                globalStatus.textContent = allNominal ? 'ALL SYSTEMS NOMINAL' : 'ANOMALY DETECTED';
+                globalStatus.className = 'status-indicator ' + (allNominal ? 'nominal' : predictions.priority ? predictions.priority.toLowerCase() : 'warning');
+                
+                // 3. Update Predictions Card
+                if (predictions && predictions.title) {
+                    document.getElementById('prediction-title-anomaly').textContent = predictions.title;
+                    document.getElementById('prediction-message').textContent = predictions.message;
+                    // Change icon/color based on priority (if needed)
+                    const icon = document.getElementById('prediction-icon-anomaly');
+                    icon.style.color = predictions.priority === 'CRITICAL' ? 'var(--critical)' : 'var(--warning)';
+                    icon.querySelector('i').className = 'fas fa-exclamation-circle';
+                } else {
+                    document.getElementById('prediction-title-anomaly').textContent = 'SYSTEMS NORMAL';
+                    document.getElementById('prediction-message').textContent = 'No immediate threats detected. All systems operating within predicted parameters.';
+                    document.getElementById('prediction-icon-anomaly').querySelector('i').className = 'fas fa-check-circle';
+                    document.getElementById('prediction-icon-anomaly').style.color = 'var(--success)';
+                }
+
+                // 4. Update Chart
+                if (telemetryChart) {
+                    updateChart(data);
+                }
+                
+            } catch (error) {
+                console.error('Error fetching data:', error);
+            }
+        }
+        
+        async function updateRecommendationsUI() {
+            try {
+                const recResponse = await fetch('/get_recommendations');
+                const recommendations = await recResponse.json();
+                const list = document.getElementById('recommendations-list');
+                
+                // FIX 1: Check if the active recommendation has changed
+                const newRecId = recommendations.length > 0 ? recommendations[0].id : null;
+                if (newRecId === lastRecommendationId && list.children.length > 0) {
+                    return; // No change, exit early to prevent flicker
+                }
+                
+                // Update the state
+                lastRecommendationId = newRecId;
+
+                // Clear and rebuild the UI only when a change is detected
+                list.innerHTML = '';
+                
+                if (recommendations.length > 0) {
+                    // Fetch predictions to get priority for display
+                    const predResponse = await fetch('/get_predictions');
+                    const predictions = await predResponse.json();
+                    // Set default to 'MEDIUM' if priority is not available
+                    const priorityDisplay = predictions.priority || 'MEDIUM';
+                    const priorityClass = 'priority-' + priorityDisplay.toLowerCase(); 
+
+                    recommendations.forEach(rec => {
+                        const recElement = document.createElement('div');
+                        recElement.className = 'recommendation-item';
+                        // Use the priority from the /get_predictions call for the display
+                        recElement.innerHTML = `
+                            <span class="recommendation-priority ${priorityClass}">${priorityDisplay}</span>
+                            <div>
+                                <div style="font-weight: 600;">${rec.text.split('(')[0].trim()}</div>
+                                <div style="font-size: 0.8rem; color: var(--text-secondary);">${rec.text.split('(')[1] ? rec.text.split('(')[1].replace(')', '') : 'Crew procedure recommendation.'}</div>
+                            </div>
+                            <button class="btn-action btn-execute" data-id="${rec.id}">EXECUTE</button>
+                        `;
+                        list.appendChild(recElement);
+                    });
+                } else {
+                    // Default nominal recommendation
+                    list.innerHTML = `<div class="recommendation-item">
+                        <span class="recommendation-priority priority-low">LOW</span>
+                        <div>
+                            <div style="font-weight: 600;">Standard Procedure: Monitoring Phase</div>
+                            <div style="font-size: 0.8rem; color: var(--text-secondary);">All systems nominal. Continue to monitor telemetry.</div>
+                        </div>
+                        <button class="btn-action btn-dismiss">ACKNOWLEDGE</button>
+                    </div>`;
+                }
+
+                // Add event listeners to the new execute buttons
+                document.querySelectorAll('.btn-execute').forEach(button => {
+                    button.addEventListener('click', async () => {
+                        const actionId = parseInt(button.getAttribute('data-id'));
+                        await executeAction(actionId);
+                    });
+                });
+            } catch (error) {
+                console.error('Error fetching recommendations:', error);
+            }
+        }
+
+        async function executeAction(actionId) {
+            try {
+                const button = document.querySelector(`.btn-execute[data-id="${actionId}"]`);
+                
+                // FIX 2: Immediate visual feedback (change button state)
+                button.textContent = 'EXECUTING...';
+                button.classList.remove('btn-execute');
+                button.classList.add('btn-pending');
+                button.disabled = true; 
+                
+                const response = await fetch('/execute_action', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ action_id: actionId })
+                });
+                const result = await response.json();
+                const msgElement = document.getElementById('solution-message');
+
+                msgElement.textContent = result.message;
+                msgElement.style.display = 'block';
+                msgElement.style.color = result.status === 'success' ? 'var(--success)' : 'var(--critical)';
+                
+                // Re-enable button briefly before the forced refresh
+                button.textContent = 'DONE'; 
+                button.disabled = false;
+                
+
+                // Hide message after 5 seconds
+                setTimeout(() => { msgElement.style.display = 'none'; }, 5000);
+                
+                // Force an update to clear or continue the anomaly state
+                fetchDashboardData();
+                updateRecommendationsUI();
+
+            } catch (error) {
+                console.error('Error executing action:', error);
+                
+                // Revert button on error
+                const button = document.querySelector(`.btn-action[data-id="${actionId}"]`);
+                if(button) {
+                    button.textContent = 'EXECUTE';
+                    button.classList.remove('btn-pending');
+                    button.classList.add('btn-execute');
+                    button.disabled = false;
+                }
+            }
+        }
+
+        // --- INITIALIZATION ---
+        document.addEventListener('DOMContentLoaded', () => {
+            // Populate initial history for the chart (for all 6 metrics)
+            for(let i = 0; i < HISTORY_LENGTH; i++) {
+                chartDataHistory.push({
+                    "CO₂ Concentration (%)": 0.35 + Math.random() * 0.05, 
+                    "Cabin Pressure (kPa)": 101.0 + Math.random() * 0.5,
+                    "Cabin Temperature (°C)": 22.5 + Math.random() * 1.0,
+                    "O₂ Partial Pressure (kPa)": 21.0 + Math.random() * 0.5,
+                    "Relative Humidity (%)": 50 + Math.random() * 10,
+                    "Water Reserves (L)": 800 + Math.random() * 200,
+                    timestamp: '-'
+                });
+            }
+
+            // 1. Initialize Chart
+            initializeChart();
+            
+            // 2. Setup Chart Metric Controls
+            const chartControls = document.getElementById('chart-controls');
+            chartControls.innerHTML = ''; // Clear the dummy content
+            METRIC_KEYS.forEach((metric, index) => {
+                const button = document.createElement('button');
+                button.className = 'chart-btn';
+                button.textContent = metric;
+                if (index === 0) button.classList.add('active');
+                
+                button.addEventListener('click', () => switchChartMetric(metric));
+                chartControls.appendChild(button);
+            });
+
+            // 3. Setup Navigation
+            const navLinks = document.querySelectorAll('.nav-link');
+            const sections = document.querySelectorAll('.section');
+
+            navLinks.forEach(link => {
+                link.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    
+                    const sectionId = this.getAttribute('data-section');
+
+                    navLinks.forEach(nav => nav.classList.remove('active'));
+                    sections.forEach(sec => sec.classList.remove('active'));
+
+                    this.classList.add('active');
+                    document.getElementById(sectionId).classList.add('active');
+                });
+            });
+
+            // Initial call to set time
+            updateTime(); 
+            // Update time every second
+            setInterval(updateTime, 1000); 
+            
+            // Fetch and update data every 3 seconds
+            fetchDashboardData(); 
+            setInterval(fetchDashboardData, 3000); 
+
+            // Update recommendations every 3 seconds (or more frequently when an anomaly is active)
+            updateRecommendationsUI(); 
+            setInterval(updateRecommendationsUI, 3000); 
+            
+        }); 
+    </script>
+</body>
+</html>
